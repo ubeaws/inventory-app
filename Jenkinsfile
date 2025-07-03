@@ -8,7 +8,7 @@ pipeline {
     environment {
         ARTIFACTORY_REPO = 'inventory-app-release'
         ARTIFACTORY_DOMAIN = 'https://trial9pgutd.jfrog.io/artifactory'
-        CREDS = credentials('jfrog-creds')  // Jenkins Credentials ID for JFrog username/password
+        CREDS = credentials('jfrog-creds')  // Jenkins Credentials ID
     }
 
     stages {
@@ -39,37 +39,34 @@ pipeline {
             }
         }
 
-		stage('Deploy to EC2') {
-    steps {
-        script {
-            def remoteScript = """
-                #!/bin/bash
-                set -e
-                cd ~
+        stage('Deploy to EC2') {
+            steps {
+                script {
+                    def remoteScript = """
+                        #!/bin/bash
+                        set -e
+                        cd ~
 
-                sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
-                sudo DEBIAN_FRONTEND=noninteractive apt-get install unzip curl -y
+                        sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
+                        sudo DEBIAN_FRONTEND=noninteractive apt-get install unzip curl -y
 
-                curl -u ${CREDS_USR}:${CREDS_PSW} -O ${ARTIFACTORY_DOMAIN}/${ARTIFACTORY_REPO}/inventory-app-${BUILD_NUMBER}.zip
+                        curl -u ${CREDS_USR}:${CREDS_PSW} -O ${ARTIFACTORY_DOMAIN}/${ARTIFACTORY_REPO}/inventory-app-${BUILD_NUMBER}.zip
 
-                rm -rf inventory-app
-                unzip -o inventory-app-${BUILD_NUMBER}.zip
-                cd inventory-app-main || cd *inventory*
-                
-                npm install
-                nohup node app.js > app.log 2>&1 &
-                echo "✅ App deployed and running on EC2"
-            """
+                        rm -rf inventory-app
+                        unzip -o inventory-app-${BUILD_NUMBER}.zip
+                        cd inventory-app-main || cd *inventory*
+                        
+                        npm install
+                        nohup node app.js > app.log 2>&1 &
+                        echo "✅ App deployed and running on EC2"
+                    """
 
-            // Write deploy script to workspace
-            writeFile file: 'deploy.sh', text: remoteScript
-            sh 'chmod +x deploy.sh'
-
-            // Copy deploy.sh to EC2's /home/ubuntu/
-            sh 'scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem deploy.sh ubuntu@44.205.0.98:/home/ubuntu/deploy.sh'
-
-            // SSH into EC2 and run deploy.sh
-            sh 'ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem ubuntu@44.205.0.98 "chmod +x ~/deploy.sh && bash ~/deploy.sh"'
+                    writeFile file: 'deploy.sh', text: remoteScript
+                    sh 'chmod +x deploy.sh'
+                    sh 'scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem deploy.sh ubuntu@44.205.0.98:/home/ubuntu/deploy.sh'
+                    sh 'ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem ubuntu@44.205.0.98 "bash /home/ubuntu/deploy.sh"'
+                }
+            }
         }
     }
 }
