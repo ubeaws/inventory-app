@@ -8,7 +8,7 @@ pipeline {
     environment {
         ARTIFACTORY_REPO = 'inventory-app-release'
         ARTIFACTORY_DOMAIN = 'https://trial9pgutd.jfrog.io/artifactory'
-        CREDS = credentials('jfrog-creds')  // Jenkins Credentials ID
+        CREDS = credentials('jfrog-creds')
     }
 
     stages {
@@ -38,37 +38,38 @@ pipeline {
                 """
             }
         }
+
         stage('Deploy to EC2') {
-    steps {
-        script {
-            def remoteScript = """
-                #!/bin/bash
-                set -e
-                cd ~
+            steps {
+                script {
+                    def remoteScript = """
+                        #!/bin/bash
+                        set -e
+                        cd ~
 
-                # Install Node.js & npm (LTS 18)
-                curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-                sudo apt-get install -y nodejs
+                        # Install Node.js
+                        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                        sudo apt-get install -y nodejs unzip curl
 
-                # Download artifact
-                curl -u ${CREDS_USR}:${CREDS_PSW} -O ${ARTIFACTORY_DOMAIN}/${ARTIFACTORY_REPO}/inventory-app-${BUILD_NUMBER}.zip
+                        # Download Artifact
+                        curl -u ${CREDS_USR}:${CREDS_PSW} -O ${ARTIFACTORY_DOMAIN}/${ARTIFACTORY_REPO}/inventory-app-${BUILD_NUMBER}.zip
 
-                # Unzip & setup app
-                rm -rf inventory-app
-                unzip -o inventory-app-${BUILD_NUMBER}.zip
-                cd inventory-app-main || cd *inventory*
+                        # Setup App
+                        rm -rf inventory-app
+                        unzip -o inventory-app-${BUILD_NUMBER}.zip
+                        cd inventory-app-main || cd *inventory*
+                        npm install
+                        nohup node app.js > app.log 2>&1 &
+                        echo "✅ App deployed and running on EC2"
+                    """
 
-                npm install
-                nohup node app.js > app.log 2>&1 &
-                echo "✅ App deployed and running on EC2"
-            """
-
-            writeFile file: 'deploy.sh', text: remoteScript
-            sh 'chmod +x deploy.sh'
-            sh 'scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem deploy.sh ubuntu@44.205.0.98:/home/ubuntu/'
-            sh 'ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem ubuntu@44.205.0.98 "chmod +x ~/deploy.sh && bash ~/deploy.sh"'
+                    writeFile file: 'deploy.sh', text: remoteScript
+                    sh 'chmod +x deploy.sh'
+                    sh 'scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem deploy.sh ubuntu@44.205.0.98:/home/ubuntu/'
+                    sh 'ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem ubuntu@44.205.0.98 "chmod +x ~/deploy.sh && bash ~/deploy.sh"'
+                }
+            }
         }
     }
 }
 
-}
