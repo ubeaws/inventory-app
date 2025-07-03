@@ -8,7 +8,7 @@ pipeline {
     environment {
         ARTIFACTORY_REPO = 'inventory-app-release'
         ARTIFACTORY_DOMAIN = 'https://trial9pgutd.jfrog.io/artifactory'
-        CREDS = credentials('jfrog-creds')  // Set this ID in Jenkins credentials
+        CREDS = credentials('jfrog-creds')  // Jenkins Credentials ID for JFrog username/password
     }
 
     stages {
@@ -39,7 +39,6 @@ pipeline {
             }
         }
 
-        // 👇 Yeh tera diya hua stage hai — deploy karne wala
         stage('Deploy to EC2') {
             steps {
                 script {
@@ -47,12 +46,20 @@ pipeline {
                         #!/bin/bash
                         set -e
                         cd /home/ubuntu
-                        sudo apt update
-                        sudo apt install unzip curl -y
+
+                        # Ensure apt works without prompts
+                        sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
+                        sudo DEBIAN_FRONTEND=noninteractive apt-get install unzip curl -y
+
+                        # Download build artifact
                         curl -u ${CREDS_USR}:${CREDS_PSW} -O ${ARTIFACTORY_DOMAIN}/${ARTIFACTORY_REPO}/inventory-app-${BUILD_NUMBER}.zip
+
+                        # Clean previous and unzip
                         rm -rf inventory-app
                         unzip -o inventory-app-${BUILD_NUMBER}.zip
                         cd inventory-app-main || cd *inventory*
+
+                        # Start Node.js app
                         npm install
                         nohup node app.js > app.log 2>&1 &
                         echo "✅ App deployed and running on EC2"
