@@ -38,35 +38,35 @@ pipeline {
                 """
             }
         }
-
         stage('Deploy to EC2') {
-            steps {
-                script {
-                    def remoteScript = """
-                        #!/bin/bash
-                        set -e
-                        cd ~
+    steps {
+        script {
+            def remoteScript = """
+                #!/bin/bash
+                set -e
+                cd ~
 
-                        sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
-                        sudo DEBIAN_FRONTEND=noninteractive apt-get install unzip curl -y
+                # Install Node.js & npm (LTS 18)
+                curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                sudo apt-get install -y nodejs
 
-                        curl -u ${CREDS_USR}:${CREDS_PSW} -O ${ARTIFACTORY_DOMAIN}/${ARTIFACTORY_REPO}/inventory-app-${BUILD_NUMBER}.zip
+                # Download artifact
+                curl -u ${CREDS_USR}:${CREDS_PSW} -O ${ARTIFACTORY_DOMAIN}/${ARTIFACTORY_REPO}/inventory-app-${BUILD_NUMBER}.zip
 
-                        rm -rf inventory-app
-                        unzip -o inventory-app-${BUILD_NUMBER}.zip
-                        cd inventory-app-main || cd *inventory*
-                        
-                        npm install
-                        nohup node app.js > app.log 2>&1 &
-                        echo "✅ App deployed and running on EC2"
-                    """
+                # Unzip & setup app
+                rm -rf inventory-app
+                unzip -o inventory-app-${BUILD_NUMBER}.zip
+                cd inventory-app-main || cd *inventory*
 
-                    writeFile file: 'deploy.sh', text: remoteScript
-                    sh 'chmod +x deploy.sh'
-                    sh 'scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem deploy.sh ubuntu@44.205.0.98:/home/ubuntu/deploy.sh'
-                    sh 'ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem ubuntu@44.205.0.98 "bash /home/ubuntu/deploy.sh"'
-                }
-            }
+                npm install
+                nohup node app.js > app.log 2>&1 &
+                echo "✅ App deployed and running on EC2"
+            """
+
+            writeFile file: 'deploy.sh', text: remoteScript
+            sh 'chmod +x deploy.sh'
+            sh 'scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem deploy.sh ubuntu@44.205.0.98:/home/ubuntu/'
+            sh 'ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem ubuntu@44.205.0.98 "chmod +x ~/deploy.sh && bash ~/deploy.sh"'
         }
     }
 }
