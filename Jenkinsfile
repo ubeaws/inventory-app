@@ -5,10 +5,16 @@ pipeline {
         nodejs "NodeJS 18"
     }
 
+    environment {
+        ARTIFACTORY_REPO = 'inventory-app-release'
+        ARTIFACTORY_DOMAIN = 'https://trial9pgutd.jfrog.io/artifactory'
+        CREDS = credentials('jfrog-creds')
+    }
+
     stages {
         stage('Clone Repository') {
             steps {
-                git branch: 'main', url: 'https://ubeaws@github.com/ubeaws/inventory-app.git'
+                git branch: 'main', url: 'https://github.com/ubeaws/inventory-app.git'
             }
         }
 
@@ -18,17 +24,26 @@ pipeline {
             }
         }
 
-        stage('Run Basic Test') {
+        stage('Package Artifact') {
             steps {
-                sh 'node app.js & sleep 5'
-                sh 'curl -I http://localhost:3000'
+                sh 'zip -r inventory-app-${BUILD_NUMBER}.zip *'
             }
         }
 
-        stage('Success') {
+        stage('Upload Artifact to JFrog') {
             steps {
-                echo '✅ Build and test successful!'
+                sh """
+                curl -u ${CREDS_USR}:${CREDS_PSW} -T inventory-app-${BUILD_NUMBER}.zip \
+                ${ARTIFACTORY_DOMAIN}/${ARTIFACTORY_REPO}/inventory-app-${BUILD_NUMBER}.zip
+                """
+            }
+        }
+
+        stage('Notify') {
+            steps {
+                echo "✅ Build #${BUILD_NUMBER} uploaded to JFrog Artifactory."
             }
         }
     }
 }
+
