@@ -8,7 +8,7 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                git branch: 'main', url: 'https://github.com/YOUR_USERNAME/inventory-app.git'
+                git branch: 'main', url: 'https://ubeaws@github.com/ubeaws/inventory-app.git'
             }
         }
 
