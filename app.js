@@ -1,11 +1,13 @@
-const express = require("express");
+const express = require('express');
 const app = express();
-const port = process.env.PORT || 3000;
+const port = 3000;
 
-app.use(express.static("public"));
-app.use("/inventory", require("./routes/inventory"));
+app.get('/', (req, res) => {
+  res.send('Inventory App is running!');
+});
 
-app.listen(port, () => {
-  console.log(`📦 Inventory app running at http://localhost:${port}`);
+// ✅ Change from localhost to 0.0.0.0
+app.listen(port, '0.0.0.0', () => {
+  console.log(`App listening at http://0.0.0.0:${port}`);
 });
 
