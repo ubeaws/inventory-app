@@ -39,38 +39,37 @@ pipeline {
             }
         }
 
-        stage('Deploy to EC2') {
-            steps {
-                script {
-                    def remoteScript = """
-                        #!/bin/bash
-                        set -e
-                        cd /home/ubuntu
+		stage('Deploy to EC2') {
+    steps {
+        script {
+            def remoteScript = """
+                #!/bin/bash
+                set -e
+                cd ~
 
-                        # Ensure apt works without prompts
-                        sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
-                        sudo DEBIAN_FRONTEND=noninteractive apt-get install unzip curl -y
+                sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
+                sudo DEBIAN_FRONTEND=noninteractive apt-get install unzip curl -y
 
-                        # Download build artifact
-                        curl -u ${CREDS_USR}:${CREDS_PSW} -O ${ARTIFACTORY_DOMAIN}/${ARTIFACTORY_REPO}/inventory-app-${BUILD_NUMBER}.zip
+                curl -u ${CREDS_USR}:${CREDS_PSW} -O ${ARTIFACTORY_DOMAIN}/${ARTIFACTORY_REPO}/inventory-app-${BUILD_NUMBER}.zip
 
-                        # Clean previous and unzip
-                        rm -rf inventory-app
-                        unzip -o inventory-app-${BUILD_NUMBER}.zip
-                        cd inventory-app-main || cd *inventory*
+                rm -rf inventory-app
+                unzip -o inventory-app-${BUILD_NUMBER}.zip
+                cd inventory-app-main || cd *inventory*
+                
+                npm install
+                nohup node app.js > app.log 2>&1 &
+                echo "✅ App deployed and running on EC2"
+            """
 
-                        # Start Node.js app
-                        npm install
-                        nohup node app.js > app.log 2>&1 &
-                        echo "✅ App deployed and running on EC2"
-                    """
+            // Write deploy script to workspace
+            writeFile file: 'deploy.sh', text: remoteScript
+            sh 'chmod +x deploy.sh'
 
-                    writeFile file: 'deploy.sh', text: remoteScript
-                    sh 'chmod +x deploy.sh'
-                    sh 'scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem deploy.sh ubuntu@44.205.0.98:/home/ubuntu/'
-                    sh 'ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem ubuntu@44.205.0.98 "bash /home/ubuntu/deploy.sh"'
-                }
-            }
+            // Copy deploy.sh to EC2's /home/ubuntu/
+            sh 'scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem deploy.sh ubuntu@44.205.0.98:/home/ubuntu/deploy.sh'
+
+            // SSH into EC2 and run deploy.sh
+            sh 'ssh -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/jenkins_server_new.pem ubuntu@44.205.0.98 "chmod +x ~/deploy.sh && bash ~/deploy.sh"'
         }
     }
 }
