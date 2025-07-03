@@ -39,6 +39,7 @@ pipeline {
             }
         }
 
+        // 👇 Yeh tera diya hua stage hai — deploy karne wala
         stage('Deploy to EC2') {
             steps {
                 script {
@@ -49,8 +50,9 @@ pipeline {
                         sudo apt update
                         sudo apt install unzip curl -y
                         curl -u ${CREDS_USR}:${CREDS_PSW} -O ${ARTIFACTORY_DOMAIN}/${ARTIFACTORY_REPO}/inventory-app-${BUILD_NUMBER}.zip
-                        unzip -o inventory-app-${BUILD_NUMBER}.zip -d inventory-app
-                        cd inventory-app
+                        rm -rf inventory-app
+                        unzip -o inventory-app-${BUILD_NUMBER}.zip
+                        cd inventory-app-main || cd *inventory*
                         npm install
                         nohup node app.js > app.log 2>&1 &
                         echo "✅ App deployed and running on EC2"
